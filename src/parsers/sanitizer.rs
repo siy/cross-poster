@@ -1,7 +1,21 @@
 use anyhow::{bail, Result};
+use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::models::Article;
+
+/// Maximum allowed content size (10MB)
+const MAX_CONTENT_SIZE: usize = 10 * 1024 * 1024;
+
+/// Lazy-compiled regex for liquid tag removal (prevents ReDoS)
+static LIQUID_TAG_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"\{%[^%]*%\}").expect("Invalid liquid tag regex pattern")
+});
+
+/// Lazy-compiled regex for image URL validation (prevents ReDoS)
+static IMAGE_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"!\[[^\]]*\]\(([^)]+)\)").expect("Invalid image URL regex pattern")
+});
 
 /// Platform types for sanitization
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -12,6 +26,16 @@ pub enum Platform {
 
 /// Sanitize article for specific platform
 pub fn sanitize_for_platform(article: &mut Article, platform: Platform) -> Result<()> {
+    // Validate content size
+    if article.content.len() > MAX_CONTENT_SIZE {
+        bail!(
+            "Content size exceeds maximum allowed size of {} bytes ({}MB). Current size: {} bytes",
+            MAX_CONTENT_SIZE,
+            MAX_CONTENT_SIZE / (1024 * 1024),
+            article.content.len()
+        );
+    }
+
     match platform {
         Platform::DevTo => sanitize_for_devto(article)?,
         Platform::Medium => sanitize_for_medium(article)?,
@@ -56,15 +80,12 @@ fn sanitize_for_medium(article: &mut Article) -> Result<()> {
 
 /// Remove Liquid tags from content
 fn remove_liquid_tags(content: &str) -> String {
-    let liquid_tag_pattern = Regex::new(r"\{%.*?%\}").unwrap();
-    liquid_tag_pattern.replace_all(content, "").to_string()
+    LIQUID_TAG_PATTERN.replace_all(content, "").to_string()
 }
 
 /// Validate image URLs in content
 fn validate_image_urls(content: &str) -> Result<()> {
-    let image_pattern = Regex::new(r"!\[.*?\]\((.*?)\)").unwrap();
-
-    for cap in image_pattern.captures_iter(content) {
+    for cap in IMAGE_PATTERN.captures_iter(content) {
         if let Some(url) = cap.get(1) {
             let url_str = url.as_str();
             if !url_str.starts_with("http://") && !url_str.starts_with("https://") {

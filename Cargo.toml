@@ -33,3 +33,6 @@ unicode-segmentation = "1.12"
 
 # Regular expressions
 regex = "1.11"
+
+# Lazy static initialization
+once_cell = "1.19"
