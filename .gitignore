@@ -9,3 +9,7 @@
 
 # vibe-ensemble-mcp specific
 .vibe-ensemble-mcp/
+
+# Rust build artifacts
+/target/
+Cargo.lock

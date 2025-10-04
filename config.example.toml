@@ -1,0 +1,15 @@
+# Article Cross-Poster Configuration
+# Copy this file to ~/.config/article-cross-poster/config.toml and fill in your credentials
+
+[dev_to]
+# Your Dev.to API key
+# Get it from: https://dev.to/settings/extensions
+api_key = "your_dev_to_api_key_here"
+
+[medium]
+# Your Medium access token
+# Get it from: https://medium.com/me/settings/security
+access_token = "your_medium_access_token_here"
+
+# Your Medium user ID
+user_id = "your_medium_user_id_here"
