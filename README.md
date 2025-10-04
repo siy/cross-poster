@@ -13,17 +13,58 @@ A pure CLI tool for cross-posting articles to dev.to and Medium with AI artifact
 
 ## Installation
 
-### From Source
+### Quick Install (Recommended)
+
+**Linux and macOS:**
 
 ```bash
-git clone https://github.com/yourusername/article-cross-poster.git
-cd article-cross-poster
+curl -fsSL https://raw.githubusercontent.com/siy/cross-poster/main/install.sh | sh
+```
+
+The installer will automatically detect your OS and architecture, download the appropriate binary, and install it to `/usr/local/bin` (or `~/.local/bin` if you don't have sudo access).
+
+**Custom installation directory:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/siy/cross-poster/main/install.sh | INSTALL_DIR=$HOME/bin sh
+```
+
+**Install specific version:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/siy/cross-poster/main/install.sh | VERSION=0.1.0 sh
+```
+
+### Download Pre-built Binaries
+
+Download the latest release for your platform from the [releases page](https://github.com/siy/cross-poster/releases/latest):
+
+- **Linux (x86_64)**: `article-cross-poster-linux-x86_64.tar.gz`
+- **macOS (Intel)**: `article-cross-poster-macos-x86_64.tar.gz`
+- **macOS (Apple Silicon)**: `article-cross-poster-macos-aarch64.tar.gz`
+- **Windows (x86_64)**: `article-cross-poster-windows-x86_64.zip`
+
+Extract the archive and move the binary to a directory in your PATH:
+
+```bash
+# Example for Linux/macOS
+tar -xzf article-cross-poster-*.tar.gz
+sudo mv article-cross-poster /usr/local/bin/
+```
+
+### From Source
+
+For developers or if you want to build from source:
+
+```bash
+git clone https://github.com/siy/cross-poster.git
+cd cross-poster
 cargo build --release
 ```
 
 The binary will be available at `target/release/article-cross-poster`.
 
-### Add to PATH (Optional)
+**Add to PATH:**
 
 ```bash
 # Copy to a directory in your PATH
@@ -281,6 +322,27 @@ cargo fmt
 ```bash
 cargo build --release
 ```
+
+### Creating a Release
+
+This project uses GitHub Actions for automated releases. To create a new release:
+
+1. Update the version in `Cargo.toml`
+2. Update `CHANGELOG.md` with the new version and changes
+3. Commit the changes
+4. Create and push a git tag:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The release workflow will automatically:
+- Build binaries for Linux, macOS (Intel + ARM), and Windows
+- Create a GitHub release with all binaries
+- Generate SHA256 checksums for verification
+
+Users can then install the new version using the install script or download binaries directly from the releases page.
 
 ## License
 
