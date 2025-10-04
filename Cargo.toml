@@ -30,3 +30,6 @@ dirs = "5.0"
 
 # Unicode handling
 unicode-segmentation = "1.12"
+
+# Regular expressions
+regex = "1.11"
