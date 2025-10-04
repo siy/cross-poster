@@ -1,15 +1,84 @@
+# ========================================
 # Article Cross-Poster Configuration
-# Copy this file to ~/.config/article-cross-poster/config.toml and fill in your credentials
+# ========================================
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy this file to: ~/.config/article-cross-poster/config.toml
+# 2. Fill in your API credentials below
+# 3. Ensure proper file permissions (chmod 600 on Unix)
+#
+# SECURITY WARNING:
+# This file contains API keys in PLAIN TEXT. Keep it secure and never
+# commit it to version control. The tool sets restrictive permissions
+# automatically when using 'config init'.
 
+# ========================================
+# Dev.to Configuration
+# ========================================
 [dev_to]
-# Your Dev.to API key
-# Get it from: https://dev.to/settings/extensions
+
+# Your Dev.to API key for publishing articles
+#
+# How to get your API key:
+# 1. Log in to dev.to
+# 2. Go to: https://dev.to/settings/extensions
+# 3. Scroll down to "DEV Community API Keys"
+# 4. Click "Generate API Key"
+# 5. Copy the key and paste it below
+#
+# Permissions: The API key needs write access to publish articles
 api_key = "your_dev_to_api_key_here"
 
+# ========================================
+# Medium Configuration
+# ========================================
 [medium]
-# Your Medium access token
-# Get it from: https://medium.com/me/settings/security
+
+# Your Medium integration token for publishing articles
+#
+# How to get your access token:
+# 1. Log in to Medium
+# 2. Go to: https://medium.com/me/settings/security
+# 3. Scroll down to "Integration tokens"
+# 4. Enter a description (e.g., "Article Cross-Poster")
+# 5. Click "Get integration token"
+# 6. Copy the token and paste it below
+#
+# Note: This is an integration token, not an OAuth token
+# The token grants full access to your Medium account
 access_token = "your_medium_access_token_here"
 
-# Your Medium user ID
+# Your Medium user ID (required for API calls)
+#
+# How to find your user ID:
+# Method 1 - From Medium API:
+#   curl https://api.medium.com/v1/me -H "Authorization: Bearer YOUR_TOKEN"
+#   Look for the "id" field in the response
+#
+# Method 2 - From your Medium profile:
+#   Your profile URL is: https://medium.com/@username
+#   The user ID is typically visible in API responses
+#
+# Example: "5c8a1e0e8b5c"
 user_id = "your_medium_user_id_here"
+
+# ========================================
+# Usage Examples
+# ========================================
+#
+# After configuration, you can use commands like:
+#
+# Post to dev.to:
+#   article-cross-poster post -t devto article.md
+#
+# Post to Medium:
+#   article-cross-poster post -t medium article.md
+#
+# Post to both platforms:
+#   article-cross-poster post -t devto,medium article.md
+#
+# With AI cleanup:
+#   article-cross-poster post -t devto --clean-ai article.md
+#
+# Dry run (test without posting):
+#   article-cross-poster post -t devto,medium --dry-run article.md
