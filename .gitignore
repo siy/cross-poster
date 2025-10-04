@@ -1,0 +1,11 @@
+# Common ignore patterns
+.DS_Store
+.vscode/
+.idea/
+*.log
+*.tmp
+.env
+.env.local
+
+# vibe-ensemble-mcp specific
+.vibe-ensemble-mcp/
