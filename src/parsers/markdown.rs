@@ -137,10 +137,7 @@ Content here."#;
             article.cover_image,
             Some("https://example.com/image.jpg".to_string())
         );
-        assert_eq!(
-            article.description,
-            Some("A test description".to_string())
-        );
+        assert_eq!(article.description, Some("A test description".to_string()));
         assert!(!article.published);
     }
 }

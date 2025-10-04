@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 /// Configuration structure for the cross-poster tool
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -36,13 +39,13 @@ impl Config {
     /// Initialize config directory and create example config if it doesn't exist
     pub fn init() -> Result<()> {
         let config_path = Self::config_path()?;
-        let config_dir = config_path.parent()
+        let config_dir = config_path
+            .parent()
             .context("Failed to get config directory")?;
 
         // Create config directory if it doesn't exist
         if !config_dir.exists() {
-            fs::create_dir_all(config_dir)
-                .context("Failed to create config directory")?;
+            fs::create_dir_all(config_dir).context("Failed to create config directory")?;
         }
 
         // Create config file from example if it doesn't exist
@@ -51,10 +54,22 @@ impl Config {
             let toml_string = toml::to_string_pretty(&example_config)
                 .context("Failed to serialize example config")?;
 
-            fs::write(&config_path, toml_string)
-                .context("Failed to write config file")?;
+            fs::write(&config_path, toml_string).context("Failed to write config file")?;
+
+            // Set restrictive permissions (Unix only: 0600 = user read/write only)
+            #[cfg(unix)]
+            {
+                let mut perms = fs::metadata(&config_path)?.permissions();
+                perms.set_mode(0o600);
+                fs::set_permissions(&config_path, perms)
+                    .context("Failed to set config file permissions")?;
+            }
 
             println!("Created config file at: {}", config_path.display());
+            println!("\n⚠️  SECURITY WARNING:");
+            println!("API keys and tokens are stored in PLAIN TEXT in this file.");
+            println!("Ensure file permissions are set correctly to protect your credentials.");
+            println!("This file should only be readable by your user account.\n");
         } else {
             println!("Config file already exists at: {}", config_path.display());
         }
@@ -66,11 +81,12 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
 
-        let content = fs::read_to_string(&config_path)
-            .context(format!("Failed to read config file at {}", config_path.display()))?;
+        let content = fs::read_to_string(&config_path).context(format!(
+            "Failed to read config file at {}",
+            config_path.display()
+        ))?;
 
-        let config: Config = toml::from_str(&content)
-            .context("Failed to parse config file")?;
+        let config: Config = toml::from_str(&content).context("Failed to parse config file")?;
 
         Ok(config)
     }
@@ -81,9 +97,9 @@ impl Config {
 
         println!("Current configuration:");
         println!("  dev.to:");
-        println!("    api_key: {}****", &config.dev_to.api_key.chars().take(4).collect::<String>());
+        println!("    api_key: ********");
         println!("  medium:");
-        println!("    access_token: {}****", &config.medium.access_token.chars().take(4).collect::<String>());
+        println!("    access_token: ********");
         println!("    user_id: {}", config.medium.user_id);
 
         Ok(())

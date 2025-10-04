@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 use crate::models::Article;
 use crate::platforms::devto::DevToClient;
@@ -9,9 +9,8 @@ use crate::platforms::devto::DevToClient;
 /// Matches URLs like:
 /// - https://dev.to/username/article-slug-123
 /// - https://dev.to/username/article-slug-123abc
-static DEVTO_URL_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"https?://dev\.to/[^/]+/[^/]+-([a-z0-9]+)/?$").unwrap()
-});
+static DEVTO_URL_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"https?://dev\.to/[^/]+/[^/]+-([a-z0-9]+)/?$").unwrap());
 
 /// Parse dev.to URL and extract article ID
 pub fn parse_devto_url(url: &str) -> Result<String> {

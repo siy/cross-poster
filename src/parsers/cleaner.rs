@@ -1,4 +1,3 @@
-
 /// Clean AI artifacts from text
 ///
 /// Removes Unicode emojis, smart quotes, dashes, and other AI-generated formatting
@@ -63,12 +62,13 @@ fn clean_whitespace(text: &str) -> String {
     text.chars()
         .filter(|&c| {
             // Filter out problematic whitespace
-            !matches!(c,
+            !matches!(
+                c,
                 '\u{00A0}' | // Non-breaking space
                 '\u{200B}' | // Zero-width space
                 '\u{200C}' | // Zero-width non-joiner
                 '\u{200D}' | // Zero-width joiner
-                '\u{FEFF}'   // Zero-width no-break space
+                '\u{FEFF}' // Zero-width no-break space
             )
         })
         .collect::<String>()
@@ -122,7 +122,8 @@ mod tests {
 
     #[test]
     fn test_clean_ai_artifacts_comprehensive() {
-        let text = "Hello 👋 — this is a \u{201C}test\u{201D} with \u{2018}quotes\u{2019} and … ellipsis";
+        let text =
+            "Hello 👋 — this is a \u{201C}test\u{201D} with \u{2018}quotes\u{2019} and … ellipsis";
         let cleaned = clean_ai_artifacts(text);
         assert_eq!(
             cleaned,

@@ -10,14 +10,12 @@ use crate::models::Article;
 const MAX_CONTENT_SIZE: usize = 10 * 1024 * 1024;
 
 /// Lazy-compiled regex for liquid tag removal (prevents ReDoS)
-static LIQUID_TAG_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{%[^%]*%\}").expect("Invalid liquid tag regex pattern")
-});
+static LIQUID_TAG_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{%[^%]*%\}").expect("Invalid liquid tag regex pattern"));
 
 /// Lazy-compiled regex for image URL validation (prevents ReDoS)
-static IMAGE_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"!\[[^\]]*\]\(([^)]+)\)").expect("Invalid image URL regex pattern")
-});
+static IMAGE_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"!\[[^\]]*\]\(([^)]+)\)").expect("Invalid image URL regex pattern"));
 
 /// Platform types for sanitization
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -49,10 +47,7 @@ pub fn sanitize_for_platform(article: &mut Article, platform: Platform) -> Resul
 fn sanitize_for_devto(article: &mut Article) -> Result<()> {
     // Validate tag count (max 4 for dev.to)
     if article.tags.len() > 4 {
-        bail!(
-            "dev.to allows maximum 4 tags, found {}",
-            article.tags.len()
-        );
+        bail!("dev.to allows maximum 4 tags, found {}", article.tags.len());
     }
 
     // Validate URLs in content
@@ -65,10 +60,7 @@ fn sanitize_for_devto(article: &mut Article) -> Result<()> {
 fn sanitize_for_medium(article: &mut Article) -> Result<()> {
     // Validate tag count (max 5 for Medium)
     if article.tags.len() > 5 {
-        bail!(
-            "Medium allows maximum 5 tags, found {}",
-            article.tags.len()
-        );
+        bail!("Medium allows maximum 5 tags, found {}", article.tags.len());
     }
 
     // Remove dev.to liquid tags ({% ... %})
@@ -105,14 +97,13 @@ mod tests {
 
     #[test]
     fn test_devto_tag_validation() {
-        let mut article = Article::new("Test".to_string(), "Content".to_string())
-            .with_tags(vec![
-                "tag1".to_string(),
-                "tag2".to_string(),
-                "tag3".to_string(),
-                "tag4".to_string(),
-                "tag5".to_string(),
-            ]);
+        let mut article = Article::new("Test".to_string(), "Content".to_string()).with_tags(vec![
+            "tag1".to_string(),
+            "tag2".to_string(),
+            "tag3".to_string(),
+            "tag4".to_string(),
+            "tag5".to_string(),
+        ]);
 
         let result = sanitize_for_devto(&mut article);
         assert!(result.is_err());
@@ -121,12 +112,11 @@ mod tests {
 
     #[test]
     fn test_devto_tag_validation_success() {
-        let mut article = Article::new("Test".to_string(), "Content".to_string())
-            .with_tags(vec![
-                "tag1".to_string(),
-                "tag2".to_string(),
-                "tag3".to_string(),
-            ]);
+        let mut article = Article::new("Test".to_string(), "Content".to_string()).with_tags(vec![
+            "tag1".to_string(),
+            "tag2".to_string(),
+            "tag3".to_string(),
+        ]);
 
         let result = sanitize_for_devto(&mut article);
         assert!(result.is_ok());
@@ -134,15 +124,14 @@ mod tests {
 
     #[test]
     fn test_medium_tag_validation() {
-        let mut article = Article::new("Test".to_string(), "Content".to_string())
-            .with_tags(vec![
-                "tag1".to_string(),
-                "tag2".to_string(),
-                "tag3".to_string(),
-                "tag4".to_string(),
-                "tag5".to_string(),
-                "tag6".to_string(),
-            ]);
+        let mut article = Article::new("Test".to_string(), "Content".to_string()).with_tags(vec![
+            "tag1".to_string(),
+            "tag2".to_string(),
+            "tag3".to_string(),
+            "tag4".to_string(),
+            "tag5".to_string(),
+            "tag6".to_string(),
+        ]);
 
         let result = sanitize_for_medium(&mut article);
         assert!(result.is_err());
@@ -168,10 +157,7 @@ mod tests {
         let content = "![alt](relative/path/image.jpg)";
         let result = validate_image_urls(content);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("must be absolute"));
+        assert!(result.unwrap_err().to_string().contains("must be absolute"));
     }
 
     #[test]

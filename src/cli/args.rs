@@ -82,7 +82,10 @@ impl std::str::FromStr for Platform {
         match s.to_lowercase().as_str() {
             "devto" | "dev.to" => Ok(Platform::DevTo),
             "medium" => Ok(Platform::Medium),
-            _ => Err(format!("Unknown platform: '{}'. Valid options: devto, medium", s)),
+            _ => Err(format!(
+                "Unknown platform: '{}'. Valid options: devto, medium",
+                s
+            )),
         }
     }
 }

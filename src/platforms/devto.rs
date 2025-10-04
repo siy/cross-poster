@@ -73,11 +73,7 @@ impl DevToClient {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            anyhow::bail!(
-                "dev.to API error (status {}): {}",
-                status,
-                error_text
-            );
+            anyhow::bail!("dev.to API error (status {}): {}", status, error_text);
         }
 
         let devto_article: DevToArticleResponse = response
@@ -141,12 +137,7 @@ impl DevToClient {
                 "API request failed"
             };
 
-            anyhow::bail!(
-                "{} (status {}): {}",
-                error_msg,
-                status,
-                error_text
-            );
+            anyhow::bail!("{} (status {}): {}", error_msg, status, error_text);
         }
 
         #[derive(Deserialize)]

@@ -10,6 +10,7 @@ use models::Article;
 use parsers::{clean_ai_artifacts, fetch_from_devto_url, parse_devto_url, parse_markdown};
 use platforms::{DevToClient, MediumClient};
 use std::fs;
+use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,9 +25,7 @@ async fn main() -> Result<()> {
             tags,
             canonical,
             dry_run,
-        } => {
-            handle_post_command(input, platforms, clean_ai, tags, canonical, dry_run).await
-        }
+        } => handle_post_command(input, platforms, clean_ai, tags, canonical, dry_run).await,
         Commands::Preview { input, clean_ai } => handle_preview_command(input, clean_ai).await,
     }
 }
@@ -102,7 +101,14 @@ async fn handle_post_command(
 
     if dry_run {
         println!("\n--- DRY RUN MODE ---");
-        println!("Would post to platforms: {}", platforms.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", "));
+        println!(
+            "Would post to platforms: {}",
+            platforms
+                .iter()
+                .map(|p| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         println!("\nArticle details:");
         println!("  Title: {}", article.title);
         println!("  Tags: {}", article.tags.join(", "));
@@ -169,19 +175,31 @@ async fn load_article(input: &str) -> Result<Article> {
     // Check if input is a dev.to URL
     if parse_devto_url(input).is_ok() {
         // Fetch from dev.to - need API key from config
-        let config = Config::load()
-            .context("Failed to load config. Run 'config init' first.")?;
+        let config = Config::load().context("Failed to load config. Run 'config init' first.")?;
 
         fetch_from_devto_url(input, &config.dev_to.api_key)
             .await
             .context("Failed to fetch article from dev.to URL")
     } else {
-        // Assume it's a file path
-        let content = fs::read_to_string(input)
-            .context(format!("Failed to read markdown file: {}", input))?;
+        // Assume it's a file path - validate and canonicalize to prevent path traversal
+        let path = Path::new(input);
 
-        parse_markdown(&content)
-            .context("Failed to parse markdown file")
+        // Canonicalize the path to resolve .. and symlinks
+        let canonical_path = path
+            .canonicalize()
+            .context(format!("Invalid or inaccessible file path: {}", input))?;
+
+        // Verify it's a file (not a directory or special file)
+        if !canonical_path.is_file() {
+            anyhow::bail!("Path is not a regular file: {}", input);
+        }
+
+        let content = fs::read_to_string(&canonical_path).context(format!(
+            "Failed to read markdown file: {}",
+            canonical_path.display()
+        ))?;
+
+        parse_markdown(&content).context("Failed to parse markdown file")
     }
 }
 

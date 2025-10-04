@@ -100,12 +100,7 @@ impl MediumClient {
                 "Failed to authenticate with Medium API"
             };
 
-            anyhow::bail!(
-                "{} (status {}): {}",
-                error_msg,
-                status,
-                error_text
-            );
+            anyhow::bail!("{} (status {}): {}", error_msg, status, error_text);
         }
 
         let user_response: MediumUserResponse = response
@@ -165,12 +160,7 @@ impl MediumClient {
                 "API request failed"
             };
 
-            anyhow::bail!(
-                "{} (status {}): {}",
-                error_msg,
-                status,
-                error_text
-            );
+            anyhow::bail!("{} (status {}): {}", error_msg, status, error_text);
         }
 
         let publish_response: MediumPublishResponse = response
