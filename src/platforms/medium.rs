@@ -40,6 +40,7 @@ struct MediumPublishRequest {
 /// Content format for Medium articles
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[allow(dead_code)]
 enum ContentFormat {
     Markdown,
     Html,
@@ -48,6 +49,7 @@ enum ContentFormat {
 /// Publication status for Medium articles
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[allow(dead_code)]
 enum PublishStatus {
     Public,
     Draft,

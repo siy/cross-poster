@@ -51,11 +51,9 @@ fn replace_typography(text: &str) -> String {
         .replace('\u{2013}', "-")
         .replace("–", "-")
         // Smart double quotes → straight quotes
-        .replace('\u{201C}', "\"")
-        .replace('\u{201D}', "\"")
+        .replace(['\u{201C}', '\u{201D}'], "\"")
         // Smart single quotes → straight apostrophes
-        .replace('\u{2018}', "'")
-        .replace('\u{2019}', "'")
+        .replace(['\u{2018}', '\u{2019}'], "'")
         // Ellipsis → three dots
         .replace('\u{2026}', "...")
 }
