@@ -23,7 +23,6 @@ pub struct DevToConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MediumConfig {
     pub access_token: String,
-    pub user_id: String,
 }
 
 impl Config {
@@ -49,29 +48,43 @@ impl Config {
         }
 
         // Create config file from example if it doesn't exist
-        if !config_path.exists() {
-            let example_config = Self::example_config();
-            let toml_string = toml::to_string_pretty(&example_config)
-                .context("Failed to serialize example config")?;
+        // Use OpenOptions with create_new for atomic file creation (prevents race conditions)
+        use std::fs::OpenOptions;
+        use std::io::Write;
 
-            fs::write(&config_path, toml_string).context("Failed to write config file")?;
+        let file_result = OpenOptions::new()
+            .write(true)
+            .create_new(true) // Fails if file already exists (atomic)
+            .open(&config_path);
 
-            // Set restrictive permissions (Unix only: 0600 = user read/write only)
-            #[cfg(unix)]
-            {
-                let mut perms = fs::metadata(&config_path)?.permissions();
-                perms.set_mode(0o600);
-                fs::set_permissions(&config_path, perms)
-                    .context("Failed to set config file permissions")?;
+        match file_result {
+            Ok(mut file) => {
+                let example_config = Self::example_config();
+                let toml_string = toml::to_string_pretty(&example_config)
+                    .context("Failed to serialize example config")?;
+
+                file.write_all(toml_string.as_bytes())
+                    .context("Failed to write config file")?;
+
+                // Set restrictive permissions (Unix only: 0600 = user read/write only)
+                #[cfg(unix)]
+                {
+                    let mut perms = file.metadata()?.permissions();
+                    perms.set_mode(0o600);
+                    file.set_permissions(perms)
+                        .context("Failed to set config file permissions")?;
+                }
+
+                println!("Created config file at: {}", config_path.display());
+                println!("\n⚠️  SECURITY WARNING:");
+                println!("API keys and tokens are stored in PLAIN TEXT in this file.");
+                println!("Ensure file permissions are set correctly to protect your credentials.");
+                println!("This file should only be readable by your user account.\n");
             }
-
-            println!("Created config file at: {}", config_path.display());
-            println!("\n⚠️  SECURITY WARNING:");
-            println!("API keys and tokens are stored in PLAIN TEXT in this file.");
-            println!("Ensure file permissions are set correctly to protect your credentials.");
-            println!("This file should only be readable by your user account.\n");
-        } else {
-            println!("Config file already exists at: {}", config_path.display());
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                println!("Config file already exists at: {}", config_path.display());
+            }
+            Err(e) => return Err(e).context("Failed to create config file"),
         }
 
         Ok(())
@@ -88,19 +101,41 @@ impl Config {
 
         let config: Config = toml::from_str(&content).context("Failed to parse config file")?;
 
+        // Validate that placeholder values haven't been used
+        if config.dev_to.api_key.contains("your_dev_to_api_key")
+            || config.dev_to.api_key.is_empty()
+            || config.dev_to.api_key.contains("INSERT")
+        {
+            anyhow::bail!(
+                "dev.to API key is not configured. Please edit {} and add your API key.\n\
+                Get your API key from: https://dev.to/settings/extensions",
+                config_path.display()
+            );
+        }
+
+        if config.medium.access_token.contains("your_medium_access_token")
+            || config.medium.access_token.is_empty()
+            || config.medium.access_token.contains("INSERT")
+        {
+            anyhow::bail!(
+                "Medium access token is not configured. Please edit {} and add your access token.\n\
+                Get your token from: https://medium.com/me/settings/security",
+                config_path.display()
+            );
+        }
+
         Ok(config)
     }
 
     /// Display the current config (with sensitive data masked)
     pub fn show() -> Result<()> {
-        let config = Self::load()?;
+        let _config = Self::load()?;
 
         println!("Current configuration:");
         println!("  dev.to:");
         println!("    api_key: ********");
         println!("  medium:");
         println!("    access_token: ********");
-        println!("    user_id: {}", config.medium.user_id);
 
         Ok(())
     }
@@ -120,7 +155,6 @@ impl Config {
             },
             medium: MediumConfig {
                 access_token: "your_medium_access_token_here".to_string(),
-                user_id: "your_medium_user_id_here".to_string(),
             },
         }
     }

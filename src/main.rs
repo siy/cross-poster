@@ -5,7 +5,7 @@ mod platforms;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use cli::{Cli, Commands, Config, ConfigAction, Platform};
+use cli::{Cli, Commands, Config, ConfigAction, ContentFormat, Platform};
 use models::Article;
 use parsers::{clean_ai_artifacts, fetch_from_devto_url, parse_devto_url, parse_markdown};
 use platforms::{DevToClient, MediumClient};
@@ -25,7 +25,10 @@ async fn main() -> Result<()> {
             tags,
             canonical,
             dry_run,
-        } => handle_post_command(input, platforms, clean_ai, tags, canonical, dry_run).await,
+            format,
+        } => {
+            handle_post_command(input, platforms, clean_ai, tags, canonical, dry_run, format).await
+        }
         Commands::Preview { input, clean_ai } => handle_preview_command(input, clean_ai).await,
     }
 }
@@ -80,6 +83,7 @@ async fn handle_post_command(
     tags_override: Option<Vec<String>>,
     canonical_override: Option<String>,
     dry_run: bool,
+    format: ContentFormat,
 ) -> Result<()> {
     println!("Loading article from: {}", input);
 
@@ -138,7 +142,7 @@ async fn handle_post_command(
             }
             Platform::Medium => {
                 let client = MediumClient::new(config.medium.access_token.clone());
-                publish_to_medium(&client, &article).await
+                publish_to_medium(&client, &article, &format).await
             }
         };
 
@@ -162,7 +166,10 @@ async fn handle_post_command(
                 println!("✓ {}: {}", platform, url);
             }
             Err(e) => {
-                println!("✗ {}: {}", platform, e);
+                println!("✗ {}: Error", platform);
+                // Show full error chain with details
+                eprintln!("\nError details:");
+                eprintln!("{:#}", e);
             }
         }
     }
@@ -212,9 +219,13 @@ async fn publish_to_devto(client: &DevToClient, article: &Article) -> Result<Str
 }
 
 /// Publish article to Medium
-async fn publish_to_medium(client: &MediumClient, article: &Article) -> Result<String> {
+async fn publish_to_medium(
+    client: &MediumClient,
+    article: &Article,
+    format: &ContentFormat,
+) -> Result<String> {
     client
-        .publish_article(article)
+        .publish_article(article, format)
         .await
         .context("Failed to publish to Medium")
 }

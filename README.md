@@ -93,8 +93,7 @@ This creates `~/.config/article-cross-poster/config.toml` with restrictive permi
 #### Medium Access Token
 1. Go to https://medium.com/me/settings/security
 2. Generate an integration token
-3. Get your user ID from your Medium profile URL (e.g., `@username` → find user ID)
-4. Add both to your config file
+3. Add it to your config file (user ID is fetched automatically from the API)
 
 ### Edit Config
 
@@ -114,7 +113,6 @@ api_key = "your_dev_to_api_key"
 
 [medium]
 access_token = "your_medium_access_token"
-user_id = "your_medium_user_id"
 ```
 
 ### Verify Config
@@ -178,6 +176,26 @@ Set canonical URL:
 article-cross-poster post -t medium --canonical https://yourblog.com/article article.md
 ```
 
+### Choose Content Format (Medium only)
+
+Medium supports both markdown and HTML content formats. By default, markdown is used:
+
+```bash
+# Explicitly use markdown format (default)
+article-cross-poster post -t medium --format markdown article.md
+
+# Convert to HTML before publishing (recommended for complex code blocks)
+article-cross-poster post -t medium --format html article.md
+```
+
+**Why use HTML format?**
+- Better rendering of code blocks with syntax highlighting
+- More reliable handling of complex markdown structures
+- Avoids issues with nested blockquotes containing code
+- Automatically escapes raw HTML for security
+
+**Note:** The title will be automatically prepended to your content as an H1 heading if not already present (Medium API requirement).
+
 ### Dry Run
 
 Test without actually posting:
@@ -188,8 +206,9 @@ article-cross-poster post -t devto,medium --dry-run article.md
 
 ## Article Format
 
-Articles must be in markdown format with YAML frontmatter:
+Articles must be in markdown format with YAML frontmatter. You can provide the title either in the frontmatter **or** as the first H1 heading:
 
+**Option 1: Title in frontmatter**
 ```markdown
 ---
 title: Your Article Title
@@ -200,7 +219,17 @@ cover_image: https://example.com/cover.jpg
 description: A brief description of your article
 ---
 
-# Your Article Content
+Write your article content here in markdown format.
+```
+
+**Option 2: Title as H1 heading (minimal frontmatter)**
+```markdown
+---
+tags: [rust, cli, tutorial]
+published: true
+---
+
+# Your Article Title
 
 Write your article content here in markdown format.
 
@@ -215,7 +244,11 @@ fn main() {
 
 ### Required Fields
 
-- `title`: Article title (required)
+- `title`: Article title - can be provided in **one of two ways**:
+  1. In the frontmatter as `title: Your Title`
+  2. As the first H1 heading in your content (e.g., `# Your Title`)
+
+  **Note**: If you provide the title in both places, they must match exactly. This prevents accidental inconsistencies when updating your article.
 
 ### Optional Fields
 

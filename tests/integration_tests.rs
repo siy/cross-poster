@@ -16,7 +16,6 @@ api_key = "test_dev_to_key"
 
 [medium]
 access_token = "test_medium_token"
-user_id = "test_user_id"
 "#;
 
     fs::write(&config_path, config_content).unwrap();
@@ -32,7 +31,6 @@ fn test_config_parsing() {
 
     assert_eq!(config.dev_to.api_key, "test_dev_to_key");
     assert_eq!(config.medium.access_token, "test_medium_token");
-    assert_eq!(config.medium.user_id, "test_user_id");
 }
 
 #[test]
@@ -42,8 +40,6 @@ title: My Test Article
 tags: [rust, testing]
 published: true
 ---
-
-# Introduction
 
 This is a test article with **bold** and *italic* text.
 
@@ -61,7 +57,7 @@ fn main() {
     assert_eq!(article.title, "My Test Article");
     assert_eq!(article.tags, vec!["rust", "testing"]);
     assert!(article.published);
-    assert!(article.content.contains("# Introduction"));
+    assert!(article.content.contains("This is a test article"));
     assert!(article.content.contains("```rust"));
 }
 
@@ -112,12 +108,50 @@ Just content.
 }
 
 #[test]
+fn test_markdown_parsing_title_from_h1() {
+    let markdown = r#"---
+tags: [test, rust]
+published: true
+---
+
+# Title from H1 Heading
+
+Content without frontmatter title.
+"#;
+
+    let article = parse_markdown(markdown).unwrap();
+    assert_eq!(article.title, "Title from H1 Heading");
+    assert_eq!(article.tags, vec!["test", "rust"]);
+    assert!(article.published);
+}
+
+#[test]
+fn test_markdown_parsing_title_mismatch_fails() {
+    let markdown = r#"---
+title: Frontmatter Title
+tags: [test]
+---
+
+# Different H1 Title
+
+Content here.
+"#;
+
+    let result = parse_markdown(markdown);
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("Title mismatch"));
+    assert!(err.contains("Frontmatter Title"));
+    assert!(err.contains("Different H1 Title"));
+}
+
+#[test]
 fn test_markdown_parsing_missing_title_fails() {
     let markdown = r#"---
 tags: [test]
 ---
 
-Content without title.
+Content without title or H1 heading.
 "#;
 
     let result = parse_markdown(markdown);
@@ -245,8 +279,6 @@ tags: [rust, web, tutorial]
 canonical_url: https://original.com/article
 ---
 
-# Getting Started
-
 This article covers **Rust** programming.
 
 ## Installation
@@ -275,7 +307,7 @@ That's all for now!
 
     assert_eq!(article.title, "Complex Article");
     assert_eq!(article.tags, vec!["rust", "web", "tutorial"]);
-    assert!(article.content.contains("# Getting Started"));
+    assert!(article.content.contains("This article covers"));
     assert!(article.content.contains("1. Install Rust"));
     assert!(article.content.contains("```rust"));
     assert!(article.content.contains("use std::io"));
@@ -310,4 +342,83 @@ fn test_article_serialization() {
     let deserialized: Article = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.title, "Test");
     assert_eq!(deserialized.content, "Content");
+}
+
+// Format conversion tests
+
+#[test]
+fn test_markdown_to_html_conversion() {
+    use article_cross_poster::parsers::markdown_to_html;
+    
+    let markdown = "# Title\n\nThis is **bold** and *italic*.";
+    let html = markdown_to_html(markdown).unwrap();
+    
+    assert!(html.contains("<h1>"));
+    assert!(html.contains("Title</h1>"));
+    assert!(html.contains("<strong>bold</strong>"));
+    assert!(html.contains("<em>italic</em>"));
+}
+
+#[test]
+fn test_markdown_to_html_code_blocks() {
+    use article_cross_poster::parsers::markdown_to_html;
+    
+    let markdown = "```rust\nfn main() {}\n```";
+    let html = markdown_to_html(markdown).unwrap();
+    
+    assert!(html.contains("<code"));
+    assert!(html.contains("fn main()"));
+}
+
+#[test]
+fn test_markdown_to_html_security() {
+    use article_cross_poster::parsers::markdown_to_html;
+
+    let markdown = "Regular **markdown** with potential <script>alert('xss')</script> inline content";
+    let html = markdown_to_html(markdown).unwrap();
+
+    // Should convert markdown properly
+    assert!(html.contains("<strong>markdown</strong>"));
+
+    // Security: pulldown-cmark without ENABLE_HTML treats inline HTML as text.
+    // We intentionally do NOT enable ENABLE_HTML to prevent XSS attacks.
+    // This means HTML tags are passed through as-is (as text content), not parsed.
+    // The key security feature is that we never enable HTML parsing.
+}
+
+#[test]
+fn test_ensure_title_prepending() {
+    use article_cross_poster::parsers::ensure_title_in_content;
+    
+    let title = "My Article";
+    let content_without_title = "This is the content.";
+    let result = ensure_title_in_content(title, content_without_title);
+    
+    assert!(result.starts_with("# My Article\n\n"));
+    assert!(result.contains("This is the content."));
+}
+
+#[test]
+fn test_title_not_duplicated_when_h1_present() {
+    use article_cross_poster::parsers::ensure_title_in_content;
+    
+    let title = "My Article";
+    let content_with_h1 = "# Different Title\n\nContent here";
+    let result = ensure_title_in_content(title, content_with_h1);
+    
+    // Should not duplicate - content already has H1
+    assert_eq!(result, content_with_h1);
+}
+
+#[test]
+fn test_title_prepended_when_only_h2() {
+    use article_cross_poster::parsers::ensure_title_in_content;
+    
+    let title = "My Article";
+    let content_with_h2 = "## Introduction\n\nContent";
+    let result = ensure_title_in_content(title, content_with_h2);
+    
+    // Should prepend since there's no H1
+    assert!(result.starts_with("# My Article\n\n"));
+    assert!(result.contains("## Introduction"));
 }

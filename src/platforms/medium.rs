@@ -2,7 +2,12 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::cli::ContentFormat;
 use crate::models::Article;
+use crate::parsers::{ensure_title_in_content, markdown_to_html};
+
+/// Maximum number of tags allowed by Medium
+const MEDIUM_MAX_TAGS: usize = 5;
 
 /// Medium API client
 pub struct MediumClient {
@@ -28,7 +33,7 @@ struct MediumUser {
 #[serde(rename_all = "camelCase")]
 struct MediumPublishRequest {
     title: String,
-    content_format: ContentFormat,
+    content_format: MediumContentFormat,
     content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     canonical_url: Option<String>,
@@ -37,11 +42,11 @@ struct MediumPublishRequest {
     publish_status: PublishStatus,
 }
 
-/// Content format for Medium articles
+/// Content format for Medium API
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[allow(dead_code)]
-enum ContentFormat {
+enum MediumContentFormat {
     Markdown,
     Html,
 }
@@ -111,15 +116,35 @@ impl MediumClient {
         Ok(user_response.data.id)
     }
 
-    /// Publish an article to Medium
-    pub async fn publish_article(&self, article: &Article) -> Result<String> {
+    /// Publish an article to Medium with specified format
+    pub async fn publish_article(
+        &self,
+        article: &Article,
+        format: &ContentFormat,
+    ) -> Result<String> {
         // First, get the user ID
         let user_id = self.get_user_id().await?;
 
         let url = format!("{}/users/{}/posts", self.base_url, user_id);
 
-        // Medium has a max of 5 tags (though documentation is unclear)
-        let tags: Vec<String> = article.tags.iter().take(5).cloned().collect();
+        // Medium has a max of 5 tags - warn if truncating
+        let tags: Vec<String> = article.tags.iter().take(MEDIUM_MAX_TAGS).cloned().collect();
+        let tags_str = tags.join(", "); // Save before moving
+        let tags_len = tags.len();
+
+        if article.tags.len() > MEDIUM_MAX_TAGS {
+            eprintln!(
+                "⚠️  Warning: Medium only supports {} tags. Truncating from {} to {} tags.",
+                MEDIUM_MAX_TAGS,
+                article.tags.len(),
+                MEDIUM_MAX_TAGS
+            );
+            eprintln!("   Included: {}", tags_str);
+            eprintln!(
+                "   Excluded: {}",
+                article.tags[MEDIUM_MAX_TAGS..].join(", ")
+            );
+        }
 
         let publish_status = if article.published {
             PublishStatus::Public
@@ -127,10 +152,26 @@ impl MediumClient {
             PublishStatus::Draft
         };
 
+        // Ensure title is in content (Medium API requires this)
+        let content_with_title = ensure_title_in_content(&article.title, &article.content);
+
+        // Convert format based on user preference
+        let (content_format, content) = match format {
+            ContentFormat::Markdown => (MediumContentFormat::Markdown, content_with_title),
+            ContentFormat::Html => {
+                let html = markdown_to_html(&content_with_title)
+                    .context("Failed to convert markdown to HTML")?;
+                (MediumContentFormat::Html, html)
+            }
+        };
+
+        // Save content length for error reporting before moving content
+        let content_len = content.len();
+
         let request_body = MediumPublishRequest {
             title: article.title.clone(),
-            content_format: ContentFormat::Markdown,
-            content: article.content.clone(),
+            content_format,
+            content,
             canonical_url: article.canonical_url.clone(),
             tags,
             publish_status,
@@ -160,7 +201,26 @@ impl MediumClient {
                 "API request failed"
             };
 
-            anyhow::bail!("{} (status {}): {}", error_msg, status, error_text);
+            anyhow::bail!(
+                "{} (status {})\n\
+                \n\
+                Server Response:\n\
+                {}\n\
+                \n\
+                Article Details:\n\
+                  Title: '{}'\n\
+                  Format: {}\n\
+                  Tags: {} ({})\n\
+                  Content length: {} chars",
+                error_msg,
+                status,
+                if error_text.is_empty() { "(no response body)" } else { &error_text },
+                article.title,
+                format,
+                tags_len,
+                tags_str,
+                content_len
+            );
         }
 
         let publish_response: MediumPublishResponse = response

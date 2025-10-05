@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::Article;
 
+/// Maximum number of tags allowed by dev.to
+const DEVTO_MAX_TAGS: usize = 4;
+
 /// dev.to API client
 pub struct DevToClient {
     client: Client,
@@ -66,6 +69,8 @@ impl DevToClient {
             .client
             .get(&url)
             .header("api-key", &self.api_key)
+            .header("Accept", "application/vnd.forem.api-v1+json")
+            .header("User-Agent", "article-cross-poster/0.1.0")
             .send()
             .await
             .context("Failed to send request to dev.to API")?;
@@ -96,8 +101,24 @@ impl DevToClient {
     pub async fn publish_article(&self, article: &Article) -> Result<String> {
         let url = format!("{}/articles", self.base_url);
 
-        // dev.to has a max of 4 tags
-        let tags: Vec<String> = article.tags.iter().take(4).cloned().collect();
+        // dev.to has a max of 4 tags - warn if truncating
+        let tags: Vec<String> = article.tags.iter().take(DEVTO_MAX_TAGS).cloned().collect();
+        let tags_str = tags.join(", "); // Save before moving
+        let tags_len = tags.len();
+
+        if article.tags.len() > DEVTO_MAX_TAGS {
+            eprintln!(
+                "⚠️  Warning: dev.to only supports {} tags. Truncating from {} to {} tags.",
+                DEVTO_MAX_TAGS,
+                article.tags.len(),
+                DEVTO_MAX_TAGS
+            );
+            eprintln!("   Included: {}", tags_str);
+            eprintln!(
+                "   Excluded: {}",
+                article.tags[DEVTO_MAX_TAGS..].join(", ")
+            );
+        }
 
         let request_body = DevToPublishRequest {
             article: DevToArticleData {
@@ -116,7 +137,9 @@ impl DevToClient {
             .client
             .post(&url)
             .header("api-key", &self.api_key)
+            .header("Accept", "application/vnd.forem.api-v1+json")
             .header("Content-Type", "application/json")
+            .header("User-Agent", "article-cross-poster/0.1.0")
             .json(&request_body)
             .send()
             .await
@@ -129,6 +152,8 @@ impl DevToClient {
             // Provide more specific error messages for common issues
             let error_msg = if status == 401 {
                 "Invalid API key - check your dev.to credentials"
+            } else if status == 403 {
+                "Access forbidden - API key may lack write permissions or article creation rights"
             } else if status == 429 {
                 "Rate limit exceeded - please try again later"
             } else if status == 422 {
@@ -137,7 +162,26 @@ impl DevToClient {
                 "API request failed"
             };
 
-            anyhow::bail!("{} (status {}): {}", error_msg, status, error_text);
+            anyhow::bail!(
+                "{} (status {})\n\
+                \n\
+                Server Response:\n\
+                {}\n\
+                \n\
+                Article Details:\n\
+                  Title: '{}'\n\
+                  Tags: {} ({})\n\
+                  Content length: {} chars\n\
+                  Published: {}",
+                error_msg,
+                status,
+                if error_text.is_empty() { "(no response body)" } else { &error_text },
+                article.title,
+                tags_len,
+                tags_str,
+                article.content.len(),
+                article.published
+            );
         }
 
         #[derive(Deserialize)]
