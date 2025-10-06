@@ -253,6 +253,8 @@ fn main() {
 ### Optional Fields
 
 - `tags`: Array of tags/keywords
+  - **dev.to**: Maximum 4 tags, only alphanumeric characters allowed (hyphens/special chars auto-removed)
+  - **Medium**: Maximum 5 tags
 - `canonical_url`: Original publication URL
 - `published`: Publication status (default: true)
 - `cover_image`: Cover image URL

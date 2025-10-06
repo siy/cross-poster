@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - XSS vulnerability by disabling raw HTML parsing in markdown-to-HTML conversion
 - dev.to API v1 authentication by adding required `Accept: application/vnd.forem.api-v1+json` header
 - dev.to API 403 errors by adding required `User-Agent` header to all requests
+- dev.to tag validation errors by automatically sanitizing tags (removes hyphens and special characters)
 
 ### Security
 - HTML conversion explicitly disables raw HTML passthrough to prevent XSS attacks

@@ -43,11 +43,39 @@ pub fn sanitize_for_platform(article: &mut Article, platform: Platform) -> Resul
     Ok(())
 }
 
+/// Sanitize tags for dev.to (remove non-alphanumeric characters)
+fn sanitize_devto_tags(tags: &[String]) -> Vec<String> {
+    tags.iter()
+        .map(|tag| {
+            // Remove all non-alphanumeric characters (dev.to requirement)
+            tag.chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>()
+                .to_lowercase()
+        })
+        .filter(|tag| !tag.is_empty()) // Remove empty tags
+        .collect()
+}
+
 /// Sanitize for dev.to platform
 fn sanitize_for_devto(article: &mut Article) -> Result<()> {
     // Validate tag count (max 4 for dev.to)
     if article.tags.len() > 4 {
         bail!("dev.to allows maximum 4 tags, found {}", article.tags.len());
+    }
+
+    // Sanitize tags - dev.to only allows alphanumeric characters
+    let original_tags = article.tags.clone();
+    article.tags = sanitize_devto_tags(&article.tags);
+
+    // Warn if tags were modified
+    if original_tags != article.tags {
+        eprintln!("⚠️  Warning: dev.to tags sanitized (only alphanumeric characters allowed):");
+        for (orig, sanitized) in original_tags.iter().zip(article.tags.iter()) {
+            if orig != sanitized {
+                eprintln!("   '{}' → '{}'", orig, sanitized);
+            }
+        }
     }
 
     // Validate URLs in content
@@ -170,5 +198,52 @@ mod tests {
 
         sanitize_for_medium(&mut article).unwrap();
         assert_eq!(article.content, "Content  here");
+    }
+
+    #[test]
+    fn test_sanitize_devto_tags() {
+        let tags = vec![
+            "coding-technology".to_string(),
+            "AI".to_string(),
+            "web-dev".to_string(),
+        ];
+
+        let sanitized = sanitize_devto_tags(&tags);
+
+        assert_eq!(
+            sanitized,
+            vec!["codingtechnology", "ai", "webdev"]
+        );
+    }
+
+    #[test]
+    fn test_sanitize_devto_tags_removes_special_chars() {
+        let tags = vec![
+            "tag@with#special$chars".to_string(),
+            "normal".to_string(),
+        ];
+
+        let sanitized = sanitize_devto_tags(&tags);
+
+        assert_eq!(
+            sanitized,
+            vec!["tagwithspecialchars", "normal"]
+        );
+    }
+
+    #[test]
+    fn test_sanitize_devto_removes_empty_tags() {
+        let tags = vec![
+            "valid".to_string(),
+            "---".to_string(), // Will become empty after sanitization
+            "also-valid".to_string(),
+        ];
+
+        let sanitized = sanitize_devto_tags(&tags);
+
+        assert_eq!(
+            sanitized,
+            vec!["valid", "alsovalid"]
+        );
     }
 }

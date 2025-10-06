@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::models::Article;
+use crate::parsers::sanitizer::{sanitize_for_platform, Platform as SanitizerPlatform};
 
 /// Maximum number of tags allowed by dev.to
 const DEVTO_MAX_TAGS: usize = 4;
@@ -101,31 +102,44 @@ impl DevToClient {
     pub async fn publish_article(&self, article: &Article) -> Result<String> {
         let url = format!("{}/articles", self.base_url);
 
+        // Clone article and sanitize for dev.to (fixes tag format, validates content, etc.)
+        let mut sanitized_article = article.clone();
+        sanitize_for_platform(&mut sanitized_article, SanitizerPlatform::DevTo)
+            .context("Failed to sanitize article for dev.to")?;
+
         // dev.to has a max of 4 tags - warn if truncating
-        let tags: Vec<String> = article.tags.iter().take(DEVTO_MAX_TAGS).cloned().collect();
+        let tags: Vec<String> = sanitized_article
+            .tags
+            .iter()
+            .take(DEVTO_MAX_TAGS)
+            .cloned()
+            .collect();
         let tags_str = tags.join(", "); // Save before moving
         let tags_len = tags.len();
 
-        if article.tags.len() > DEVTO_MAX_TAGS {
+        if sanitized_article.tags.len() > DEVTO_MAX_TAGS {
             eprintln!(
                 "⚠️  Warning: dev.to only supports {} tags. Truncating from {} to {} tags.",
                 DEVTO_MAX_TAGS,
-                article.tags.len(),
+                sanitized_article.tags.len(),
                 DEVTO_MAX_TAGS
             );
             eprintln!("   Included: {}", tags_str);
-            eprintln!("   Excluded: {}", article.tags[DEVTO_MAX_TAGS..].join(", "));
+            eprintln!(
+                "   Excluded: {}",
+                sanitized_article.tags[DEVTO_MAX_TAGS..].join(", ")
+            );
         }
 
         let request_body = DevToPublishRequest {
             article: DevToArticleData {
-                title: article.title.clone(),
-                body_markdown: article.content.clone(),
-                published: article.published,
+                title: sanitized_article.title.clone(),
+                body_markdown: sanitized_article.content.clone(),
+                published: sanitized_article.published,
                 tags,
-                canonical_url: article.canonical_url.clone(),
-                main_image: article.cover_image.clone(),
-                description: article.description.clone(),
+                canonical_url: sanitized_article.canonical_url.clone(),
+                main_image: sanitized_article.cover_image.clone(),
+                description: sanitized_article.description.clone(),
                 series: None,
             },
         };
@@ -177,11 +191,11 @@ impl DevToClient {
                 } else {
                     &error_text
                 },
-                article.title,
+                sanitized_article.title,
                 tags_len,
                 tags_str,
-                article.content.len(),
-                article.published
+                sanitized_article.content.len(),
+                sanitized_article.published
             );
         }
 
