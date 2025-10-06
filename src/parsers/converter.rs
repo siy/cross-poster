@@ -140,7 +140,10 @@ mod tests {
         let result = ensure_title_in_content(title, content);
 
         // Should prepend title since content doesn't start with H1
-        assert_eq!(result, "# My Article\n\n## Introduction\n\nThis is the content.");
+        assert_eq!(
+            result,
+            "# My Article\n\n## Introduction\n\nThis is the content."
+        );
     }
 
     #[test]

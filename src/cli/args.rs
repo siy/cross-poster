@@ -155,10 +155,22 @@ mod tests {
 
     #[test]
     fn test_content_format_from_str() {
-        assert_eq!("markdown".parse::<ContentFormat>().unwrap(), ContentFormat::Markdown);
-        assert_eq!("md".parse::<ContentFormat>().unwrap(), ContentFormat::Markdown);
-        assert_eq!("html".parse::<ContentFormat>().unwrap(), ContentFormat::Html);
-        assert_eq!("HTML".parse::<ContentFormat>().unwrap(), ContentFormat::Html);
+        assert_eq!(
+            "markdown".parse::<ContentFormat>().unwrap(),
+            ContentFormat::Markdown
+        );
+        assert_eq!(
+            "md".parse::<ContentFormat>().unwrap(),
+            ContentFormat::Markdown
+        );
+        assert_eq!(
+            "html".parse::<ContentFormat>().unwrap(),
+            ContentFormat::Html
+        );
+        assert_eq!(
+            "HTML".parse::<ContentFormat>().unwrap(),
+            ContentFormat::Html
+        );
         assert!("invalid".parse::<ContentFormat>().is_err());
     }
 

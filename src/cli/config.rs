@@ -113,7 +113,10 @@ impl Config {
             );
         }
 
-        if config.medium.access_token.contains("your_medium_access_token")
+        if config
+            .medium
+            .access_token
+            .contains("your_medium_access_token")
             || config.medium.access_token.is_empty()
             || config.medium.access_token.contains("INSERT")
         {

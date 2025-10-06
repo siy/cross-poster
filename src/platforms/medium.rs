@@ -214,7 +214,11 @@ impl MediumClient {
                   Content length: {} chars",
                 error_msg,
                 status,
-                if error_text.is_empty() { "(no response body)" } else { &error_text },
+                if error_text.is_empty() {
+                    "(no response body)"
+                } else {
+                    &error_text
+                },
                 article.title,
                 format,
                 tags_len,

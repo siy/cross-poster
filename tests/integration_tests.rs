@@ -349,10 +349,10 @@ fn test_article_serialization() {
 #[test]
 fn test_markdown_to_html_conversion() {
     use article_cross_poster::parsers::markdown_to_html;
-    
+
     let markdown = "# Title\n\nThis is **bold** and *italic*.";
     let html = markdown_to_html(markdown).unwrap();
-    
+
     assert!(html.contains("<h1>"));
     assert!(html.contains("Title</h1>"));
     assert!(html.contains("<strong>bold</strong>"));
@@ -362,10 +362,10 @@ fn test_markdown_to_html_conversion() {
 #[test]
 fn test_markdown_to_html_code_blocks() {
     use article_cross_poster::parsers::markdown_to_html;
-    
+
     let markdown = "```rust\nfn main() {}\n```";
     let html = markdown_to_html(markdown).unwrap();
-    
+
     assert!(html.contains("<code"));
     assert!(html.contains("fn main()"));
 }
@@ -374,7 +374,8 @@ fn test_markdown_to_html_code_blocks() {
 fn test_markdown_to_html_security() {
     use article_cross_poster::parsers::markdown_to_html;
 
-    let markdown = "Regular **markdown** with potential <script>alert('xss')</script> inline content";
+    let markdown =
+        "Regular **markdown** with potential <script>alert('xss')</script> inline content";
     let html = markdown_to_html(markdown).unwrap();
 
     // Should convert markdown properly
@@ -389,11 +390,11 @@ fn test_markdown_to_html_security() {
 #[test]
 fn test_ensure_title_prepending() {
     use article_cross_poster::parsers::ensure_title_in_content;
-    
+
     let title = "My Article";
     let content_without_title = "This is the content.";
     let result = ensure_title_in_content(title, content_without_title);
-    
+
     assert!(result.starts_with("# My Article\n\n"));
     assert!(result.contains("This is the content."));
 }
@@ -401,11 +402,11 @@ fn test_ensure_title_prepending() {
 #[test]
 fn test_title_not_duplicated_when_h1_present() {
     use article_cross_poster::parsers::ensure_title_in_content;
-    
+
     let title = "My Article";
     let content_with_h1 = "# Different Title\n\nContent here";
     let result = ensure_title_in_content(title, content_with_h1);
-    
+
     // Should not duplicate - content already has H1
     assert_eq!(result, content_with_h1);
 }
@@ -413,11 +414,11 @@ fn test_title_not_duplicated_when_h1_present() {
 #[test]
 fn test_title_prepended_when_only_h2() {
     use article_cross_poster::parsers::ensure_title_in_content;
-    
+
     let title = "My Article";
     let content_with_h2 = "## Introduction\n\nContent";
     let result = ensure_title_in_content(title, content_with_h2);
-    
+
     // Should prepend since there's no H1
     assert!(result.starts_with("# My Article\n\n"));
     assert!(result.contains("## Introduction"));

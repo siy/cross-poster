@@ -114,10 +114,7 @@ impl DevToClient {
                 DEVTO_MAX_TAGS
             );
             eprintln!("   Included: {}", tags_str);
-            eprintln!(
-                "   Excluded: {}",
-                article.tags[DEVTO_MAX_TAGS..].join(", ")
-            );
+            eprintln!("   Excluded: {}", article.tags[DEVTO_MAX_TAGS..].join(", "));
         }
 
         let request_body = DevToPublishRequest {
@@ -175,7 +172,11 @@ impl DevToClient {
                   Published: {}",
                 error_msg,
                 status,
-                if error_text.is_empty() { "(no response body)" } else { &error_text },
+                if error_text.is_empty() {
+                    "(no response body)"
+                } else {
+                    &error_text
+                },
                 article.title,
                 tags_len,
                 tags_str,

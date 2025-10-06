@@ -67,7 +67,8 @@ pub fn parse_markdown(content: &str) -> Result<Article> {
                 anyhow::bail!(
                     "Title mismatch: frontmatter has '{}' but content starts with '# {}'. \
                     Please update in one place only to avoid inconsistency.",
-                    fm_title, h1_title
+                    fm_title,
+                    h1_title
                 );
             }
             fm_title
@@ -242,7 +243,10 @@ tags: [AI, Java]
 Content here."#;
 
         let result = parse_markdown(content);
-        assert!(result.is_err(), "YAML requires quotes around values containing colons");
+        assert!(
+            result.is_err(),
+            "YAML requires quotes around values containing colons"
+        );
     }
 
     #[test]
@@ -259,7 +263,10 @@ description: "Revolutionary technology for writing deterministic, AI-friendly, h
 Content here."#;
 
         let result = parse_markdown(content).unwrap();
-        assert_eq!(result.title, "Java Backend Coding Technology: Writing Code in the Era of AI");
+        assert_eq!(
+            result.title,
+            "Java Backend Coding Technology: Writing Code in the Era of AI"
+        );
         assert_eq!(result.tags, vec!["AI", "Java", "coding-technology"]);
     }
 }
