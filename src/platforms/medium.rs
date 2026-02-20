@@ -3,7 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::ContentFormat;
-use crate::models::Article;
+use crate::models::{Article, ArticleSummary};
 use crate::parsers::{ensure_title_in_content, markdown_to_html};
 
 /// Maximum number of tags allowed by Medium
@@ -26,6 +26,7 @@ struct MediumUserResponse {
 #[derive(Debug, Deserialize)]
 struct MediumUser {
     id: String,
+    username: String,
 }
 
 /// Request body for Medium POST /v1/users/{userId}/posts
@@ -83,8 +84,8 @@ impl MediumClient {
         }
     }
 
-    /// Get the authenticated user's ID
-    async fn get_user_id(&self) -> Result<String> {
+    /// Get the authenticated user info
+    async fn get_user(&self) -> Result<MediumUser> {
         let url = format!("{}/me", self.base_url);
 
         let response = self
@@ -113,7 +114,61 @@ impl MediumClient {
             .await
             .context("Failed to parse Medium user response")?;
 
-        Ok(user_response.data.id)
+        Ok(user_response.data)
+    }
+
+    /// List recent articles from Medium via RSS feed
+    pub async fn list_articles(&self) -> Result<Vec<ArticleSummary>> {
+        let user = self.get_user().await?;
+
+        let feed_url = format!("https://medium.com/feed/@{}", user.username);
+
+        let response = self
+            .client
+            .get(&feed_url)
+            .header("User-Agent", "article-cross-poster/0.1.0")
+            .send()
+            .await
+            .context("Failed to fetch Medium RSS feed")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            anyhow::bail!("Failed to fetch Medium RSS feed (status {})", status);
+        }
+
+        let body = response
+            .bytes()
+            .await
+            .context("Failed to read Medium RSS feed body")?;
+
+        let feed = feed_rs::parser::parse(&body[..]).context("Failed to parse Medium RSS feed")?;
+
+        Ok(feed
+            .entries
+            .into_iter()
+            .map(|entry| {
+                let published_at = entry
+                    .published
+                    .map(|dt| dt.format("%Y-%m-%d").to_string())
+                    .unwrap_or_default();
+
+                let url = entry
+                    .links
+                    .first()
+                    .map(|l| l.href.clone())
+                    .unwrap_or_default();
+
+                let tags: Vec<String> = entry.categories.iter().map(|c| c.term.clone()).collect();
+
+                ArticleSummary {
+                    id: entry.id,
+                    title: entry.title.map(|t| t.content).unwrap_or_default(),
+                    url,
+                    published_at,
+                    tags,
+                }
+            })
+            .collect())
     }
 
     /// Publish an article to Medium with specified format
@@ -122,10 +177,10 @@ impl MediumClient {
         article: &Article,
         format: &ContentFormat,
     ) -> Result<String> {
-        // First, get the user ID
-        let user_id = self.get_user_id().await?;
+        // First, get the user info
+        let user = self.get_user().await?;
 
-        let url = format!("{}/users/{}/posts", self.base_url, user_id);
+        let url = format!("{}/users/{}/posts", self.base_url, user.id);
 
         // Medium has a max of 5 tags - warn if truncating
         let tags: Vec<String> = article.tags.iter().take(MEDIUM_MAX_TAGS).cloned().collect();

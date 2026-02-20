@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::models::Article;
+use crate::models::{Article, ArticleSummary};
 use crate::parsers::sanitizer::{sanitize_for_platform, Platform as SanitizerPlatform};
 
 /// Maximum number of tags allowed by dev.to
@@ -13,6 +13,17 @@ pub struct DevToClient {
     client: Client,
     api_key: String,
     base_url: String,
+}
+
+/// Response from dev.to GET /api/articles/me/* (list endpoints)
+#[derive(Debug, Deserialize)]
+struct DevToListArticleResponse {
+    id: u64,
+    title: String,
+    url: String,
+    published_at: Option<String>,
+    #[serde(default)]
+    tag_list: Vec<String>,
 }
 
 /// Response from dev.to GET /api/articles/{id}
@@ -60,6 +71,57 @@ impl DevToClient {
             api_key,
             base_url: "https://dev.to/api".to_string(),
         }
+    }
+
+    /// List articles from dev.to
+    pub async fn list_articles(
+        &self,
+        page: u32,
+        per_page: u32,
+        state: &str,
+    ) -> Result<Vec<ArticleSummary>> {
+        let endpoint = match state {
+            "unpublished" => "articles/me/unpublished",
+            "all" => "articles/me/all",
+            _ => "articles/me/published",
+        };
+        let url = format!("{}/{}", self.base_url, endpoint);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("api-key", &self.api_key)
+            .header("Accept", "application/vnd.forem.api-v1+json")
+            .header("User-Agent", "article-cross-poster/0.1.0")
+            .query(&[
+                ("page", page.to_string()),
+                ("per_page", per_page.to_string()),
+            ])
+            .send()
+            .await
+            .context("Failed to send list request to dev.to API")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            anyhow::bail!("dev.to API error (status {}): {}", status, error_text);
+        }
+
+        let articles: Vec<DevToListArticleResponse> = response
+            .json()
+            .await
+            .context("Failed to parse dev.to article list response")?;
+
+        Ok(articles
+            .into_iter()
+            .map(|a| ArticleSummary {
+                id: a.id.to_string(),
+                title: a.title,
+                url: a.url,
+                published_at: a.published_at.unwrap_or_default(),
+                tags: a.tag_list,
+            })
+            .collect())
     }
 
     /// Fetch an article from dev.to by ID

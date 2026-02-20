@@ -1,3 +1,3 @@
 pub mod article;
 
-pub use article::Article;
+pub use article::{Article, ArticleSummary};

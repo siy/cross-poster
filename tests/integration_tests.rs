@@ -1,5 +1,5 @@
-use article_cross_poster::cli::Config;
-use article_cross_poster::models::Article;
+use article_cross_poster::cli::{ArticleState, Config};
+use article_cross_poster::models::{Article, ArticleSummary};
 use article_cross_poster::parsers::{clean_ai_artifacts, parse_markdown};
 use std::fs;
 use std::path::PathBuf;
@@ -422,4 +422,122 @@ fn test_title_prepended_when_only_h2() {
     // Should prepend since there's no H1
     assert!(result.starts_with("# My Article\n\n"));
     assert!(result.contains("## Introduction"));
+}
+
+// ArticleSummary tests
+
+#[test]
+fn test_article_summary_creation() {
+    let summary = ArticleSummary {
+        id: "12345".to_string(),
+        title: "My Test Article".to_string(),
+        url: "https://dev.to/user/my-test-article".to_string(),
+        published_at: "2024-01-15".to_string(),
+        tags: vec!["rust".to_string(), "testing".to_string()],
+    };
+
+    assert_eq!(summary.id, "12345");
+    assert_eq!(summary.title, "My Test Article");
+    assert_eq!(summary.url, "https://dev.to/user/my-test-article");
+    assert_eq!(summary.published_at, "2024-01-15");
+    assert_eq!(summary.tags, vec!["rust", "testing"]);
+}
+
+#[test]
+fn test_article_summary_empty_fields() {
+    let summary = ArticleSummary {
+        id: "1".to_string(),
+        title: String::new(),
+        url: String::new(),
+        published_at: String::new(),
+        tags: Vec::new(),
+    };
+
+    assert!(summary.title.is_empty());
+    assert!(summary.tags.is_empty());
+}
+
+// ArticleState tests
+
+#[test]
+fn test_article_state_parsing() {
+    assert_eq!(
+        "published".parse::<ArticleState>().unwrap(),
+        ArticleState::Published
+    );
+    assert_eq!(
+        "unpublished".parse::<ArticleState>().unwrap(),
+        ArticleState::Unpublished
+    );
+    assert_eq!("all".parse::<ArticleState>().unwrap(), ArticleState::All);
+}
+
+#[test]
+fn test_article_state_case_insensitive() {
+    assert_eq!(
+        "PUBLISHED".parse::<ArticleState>().unwrap(),
+        ArticleState::Published
+    );
+    assert_eq!("All".parse::<ArticleState>().unwrap(), ArticleState::All);
+}
+
+#[test]
+fn test_article_state_invalid() {
+    assert!("draft".parse::<ArticleState>().is_err());
+    assert!("".parse::<ArticleState>().is_err());
+}
+
+#[test]
+fn test_article_state_display() {
+    assert_eq!(ArticleState::Published.to_string(), "published");
+    assert_eq!(ArticleState::Unpublished.to_string(), "unpublished");
+    assert_eq!(ArticleState::All.to_string(), "all");
+}
+
+// Medium RSS feed parsing test
+
+#[test]
+fn test_medium_rss_parsing() {
+    let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Test User on Medium</title>
+    <item>
+      <title>First Article</title>
+      <link>https://medium.com/@user/first-article-abc123</link>
+      <guid>https://medium.com/p/abc123</guid>
+      <pubDate>Mon, 15 Jan 2024 12:00:00 GMT</pubDate>
+      <category>rust</category>
+      <category>programming</category>
+    </item>
+    <item>
+      <title>Second Article</title>
+      <link>https://medium.com/@user/second-article-def456</link>
+      <guid>https://medium.com/p/def456</guid>
+      <pubDate>Sat, 20 Jan 2024 15:30:00 GMT</pubDate>
+      <category>web</category>
+    </item>
+  </channel>
+</rss>"#;
+
+    let feed = feed_rs::parser::parse(rss_xml.as_bytes()).unwrap();
+
+    assert_eq!(feed.entries.len(), 2);
+
+    let first = &feed.entries[0];
+    assert_eq!(
+        first.title.as_ref().map(|t| t.content.as_str()),
+        Some("First Article")
+    );
+    assert_eq!(first.categories.len(), 2);
+    assert_eq!(first.categories[0].term, "rust");
+    assert_eq!(first.categories[1].term, "programming");
+
+    let second = &feed.entries[1];
+    assert_eq!(
+        second.title.as_ref().map(|t| t.content.as_str()),
+        Some("Second Article")
+    );
+    assert_eq!(second.categories.len(), 1);
+    assert_eq!(second.categories[0].term, "web");
 }

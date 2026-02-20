@@ -52,6 +52,40 @@ pub enum Commands {
         clean_ai: bool,
     },
 
+    /// List published articles from a platform
+    #[command(long_about = "List articles from a platform.\n\n\
+        dev.to: Supports pagination and filtering by state.\n\
+        Medium: Returns at most 10 recent articles via RSS. No pagination or state filtering.")]
+    List {
+        /// Platform to list from (devto or medium)
+        #[arg(long = "from", required = true)]
+        platform: Platform,
+
+        /// Page number (dev.to only, default: 1)
+        #[arg(long, default_value = "1")]
+        page: u32,
+
+        /// Articles per page (dev.to only, default: 30)
+        #[arg(long, default_value = "30")]
+        per_page: u32,
+
+        /// Article state filter (dev.to only: published, unpublished, all)
+        #[arg(long, default_value = "published")]
+        state: ArticleState,
+    },
+
+    /// Fetch a single article by ID
+    #[command(long_about = "Fetch a single article by ID.\n\n\
+        Only dev.to is supported. Medium does not provide an article fetch API.")]
+    Fetch {
+        /// Article ID
+        id: String,
+
+        /// Platform to fetch from (only devto supported)
+        #[arg(long = "from", required = true)]
+        platform: Platform,
+    },
+
     /// Manage configuration
     Config {
         #[command(subcommand)]
@@ -77,6 +111,14 @@ pub enum ConfigAction {
 pub enum Platform {
     DevTo,
     Medium,
+}
+
+/// Article state filter for listing
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArticleState {
+    Published,
+    Unpublished,
+    All,
 }
 
 /// Content format for Medium posts
@@ -106,6 +148,32 @@ impl std::fmt::Display for Platform {
         match self {
             Platform::DevTo => write!(f, "dev.to"),
             Platform::Medium => write!(f, "Medium"),
+        }
+    }
+}
+
+impl std::str::FromStr for ArticleState {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "published" => Ok(ArticleState::Published),
+            "unpublished" => Ok(ArticleState::Unpublished),
+            "all" => Ok(ArticleState::All),
+            _ => Err(format!(
+                "Unknown state: '{}'. Valid options: published, unpublished, all",
+                s
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for ArticleState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArticleState::Published => write!(f, "published"),
+            ArticleState::Unpublished => write!(f, "unpublished"),
+            ArticleState::All => write!(f, "all"),
         }
     }
 }
@@ -178,5 +246,27 @@ mod tests {
     fn test_content_format_display() {
         assert_eq!(ContentFormat::Markdown.to_string(), "markdown");
         assert_eq!(ContentFormat::Html.to_string(), "html");
+    }
+
+    #[test]
+    fn test_article_state_from_str() {
+        assert_eq!(
+            "published".parse::<ArticleState>().unwrap(),
+            ArticleState::Published
+        );
+        assert_eq!(
+            "unpublished".parse::<ArticleState>().unwrap(),
+            ArticleState::Unpublished
+        );
+        assert_eq!("all".parse::<ArticleState>().unwrap(), ArticleState::All);
+        assert_eq!("ALL".parse::<ArticleState>().unwrap(), ArticleState::All);
+        assert!("invalid".parse::<ArticleState>().is_err());
+    }
+
+    #[test]
+    fn test_article_state_display() {
+        assert_eq!(ArticleState::Published.to_string(), "published");
+        assert_eq!(ArticleState::Unpublished.to_string(), "unpublished");
+        assert_eq!(ArticleState::All.to_string(), "all");
     }
 }

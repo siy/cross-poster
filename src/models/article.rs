@@ -1,5 +1,15 @@
 use serde::{Deserialize, Serialize};
 
+/// Lightweight article summary for list output
+#[derive(Debug, Clone)]
+pub struct ArticleSummary {
+    pub id: String,
+    pub title: String,
+    pub url: String,
+    pub published_at: String,
+    pub tags: Vec<String>,
+}
+
 /// Internal representation of an article
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Article {

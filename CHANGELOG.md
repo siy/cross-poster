@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-02-20
 
 ### Added
 - GitHub Actions CI pipeline for automated testing, linting, and formatting
@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - API key validation to prevent use of placeholder values
 - Smart title extraction: automatically extract title from first H1 heading if not in frontmatter
 - Title consistency validation: detect and prevent mismatches between frontmatter title and H1 heading
+- `list` command to list articles from dev.to (with pagination and state filtering) or Medium (via RSS feed)
+- `fetch` command to retrieve a single dev.to article by ID
+- `ArticleSummary` model for lightweight article list output
+- `ArticleState` enum for dev.to list filtering (published, unpublished, all)
+- Medium RSS feed parsing via `feed-rs` dependency
+- `list_articles()` method on both `DevToClient` and `MediumClient`
 
 ### Changed
 - Enhanced README.md with comprehensive installation options

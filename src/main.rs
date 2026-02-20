@@ -5,7 +5,7 @@ mod platforms;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use cli::{Cli, Commands, Config, ConfigAction, ContentFormat, Platform};
+use cli::{ArticleState, Cli, Commands, Config, ConfigAction, ContentFormat, Platform};
 use models::Article;
 use parsers::{clean_ai_artifacts, fetch_from_devto_url, parse_devto_url, parse_markdown};
 use platforms::{DevToClient, MediumClient};
@@ -30,6 +30,13 @@ async fn main() -> Result<()> {
             handle_post_command(input, platforms, clean_ai, tags, canonical, dry_run, format).await
         }
         Commands::Preview { input, clean_ai } => handle_preview_command(input, clean_ai).await,
+        Commands::List {
+            platform,
+            page,
+            per_page,
+            state,
+        } => handle_list_command(platform, page, per_page, state).await,
+        Commands::Fetch { id, platform } => handle_fetch_command(id, platform).await,
     }
 }
 
@@ -171,6 +178,121 @@ async fn handle_post_command(
                 eprintln!("\nError details:");
                 eprintln!("{:#}", e);
             }
+        }
+    }
+
+    Ok(())
+}
+
+/// Handle list command - list articles from a platform
+async fn handle_list_command(
+    platform: Platform,
+    page: u32,
+    per_page: u32,
+    state: ArticleState,
+) -> Result<()> {
+    let config = Config::load().context("Failed to load config. Run 'config init' first.")?;
+
+    match platform {
+        Platform::DevTo => {
+            let client = DevToClient::new(config.dev_to.api_key.clone());
+            let articles = client
+                .list_articles(page, per_page, &state.to_string())
+                .await
+                .context("Failed to list dev.to articles")?;
+
+            println!(
+                "{} articles on dev.to (page {}):\n",
+                state
+                    .to_string()
+                    .chars()
+                    .next()
+                    .unwrap()
+                    .to_uppercase()
+                    .to_string()
+                    + &state.to_string()[1..],
+                page
+            );
+            println!("  {:<10} {:<12} Title", "ID", "Published");
+            println!("  {:<10} {:<12} -----", "------", "----------");
+
+            for article in &articles {
+                let date = if article.published_at.len() >= 10 {
+                    &article.published_at[..10]
+                } else {
+                    &article.published_at
+                };
+                println!("  {:<10} {:<12} {}", article.id, date, article.title);
+            }
+
+            println!(
+                "\nShowing {} articles (page {}, {} per page)",
+                articles.len(),
+                page,
+                per_page
+            );
+        }
+        Platform::Medium => {
+            let client = MediumClient::new(config.medium.access_token.clone());
+            let articles = client
+                .list_articles()
+                .await
+                .context("Failed to list Medium articles")?;
+
+            println!("Recent articles on Medium:\n");
+            println!("  {:<12} Title", "Published");
+            println!("  {:<12} -----", "----------");
+
+            for article in &articles {
+                println!("  {:<12} {}", article.published_at, article.title);
+            }
+
+            println!(
+                "\nNote: Medium RSS feed returns at most 10 recent articles.\n      \
+                 Content is HTML only (no original markdown). No pagination."
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Handle fetch command - fetch a single article by ID
+async fn handle_fetch_command(id: String, platform: Platform) -> Result<()> {
+    match platform {
+        Platform::DevTo => {
+            let config =
+                Config::load().context("Failed to load config. Run 'config init' first.")?;
+            let client = DevToClient::new(config.dev_to.api_key.clone());
+            let article = client
+                .fetch_article(&id)
+                .await
+                .context("Failed to fetch article from dev.to")?;
+
+            println!("\n--- PREVIEW ---\n");
+            println!("Title: {}", article.title);
+            if !article.tags.is_empty() {
+                println!("Tags: {}", article.tags.join(", "));
+            }
+            if let Some(ref canonical) = article.canonical_url {
+                println!("Canonical URL: {}", canonical);
+            }
+            if let Some(ref cover) = article.cover_image {
+                println!("Cover Image: {}", cover);
+            }
+            if let Some(ref desc) = article.description {
+                println!("Description: {}", desc);
+            }
+            println!("Published: {}", article.published);
+            println!("\n--- CONTENT ---\n");
+            println!("{}", article.content);
+            println!("\n--- END PREVIEW ---");
+        }
+        Platform::Medium => {
+            anyhow::bail!(
+                "Fetching individual articles is not supported for Medium.\n\
+                 Medium's API does not provide an endpoint to fetch articles by ID."
+            );
         }
     }
 

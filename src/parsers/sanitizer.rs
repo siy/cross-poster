@@ -210,25 +210,16 @@ mod tests {
 
         let sanitized = sanitize_devto_tags(&tags);
 
-        assert_eq!(
-            sanitized,
-            vec!["codingtechnology", "ai", "webdev"]
-        );
+        assert_eq!(sanitized, vec!["codingtechnology", "ai", "webdev"]);
     }
 
     #[test]
     fn test_sanitize_devto_tags_removes_special_chars() {
-        let tags = vec![
-            "tag@with#special$chars".to_string(),
-            "normal".to_string(),
-        ];
+        let tags = vec!["tag@with#special$chars".to_string(), "normal".to_string()];
 
         let sanitized = sanitize_devto_tags(&tags);
 
-        assert_eq!(
-            sanitized,
-            vec!["tagwithspecialchars", "normal"]
-        );
+        assert_eq!(sanitized, vec!["tagwithspecialchars", "normal"]);
     }
 
     #[test]
@@ -241,9 +232,6 @@ mod tests {
 
         let sanitized = sanitize_devto_tags(&tags);
 
-        assert_eq!(
-            sanitized,
-            vec!["valid", "alsovalid"]
-        );
+        assert_eq!(sanitized, vec!["valid", "alsovalid"]);
     }
 }
