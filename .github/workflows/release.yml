@@ -46,7 +46,7 @@ jobs:
             asset_name: article-cross-poster-linux-x86_64
 
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-latest
             artifact_name: article-cross-poster
             asset_name: article-cross-poster-macos-x86_64
 
